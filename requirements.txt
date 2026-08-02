@@ -1,0 +1,261 @@
+TRAENINGS PROGRESS TRACKER - REQUIREMENTS
+==========================================
+Doc purpose: running record of requirements gathered during planning discussion.
+Status: COMPLETE - all requirements clarified and decided.
+
+1. PURPOSE
+----------
+Personal training tracker app. Main goal: log workouts and help the user
+progress each training session (native Android app).
+
+2. PLATFORM / ARCHITECTURE
+---------------------------
+- Frontend: native Android application.
+- Backend/storage: Supabase.
+- Usage model: OFFLINE-FIRST.
+  - App must be fully usable with no internet/wifi connection (log workouts,
+    view history, get reminders, etc. all work offline).
+  - Local database (device-side, e.g. Room/SQLite) is the source of truth
+    for day-to-day use.
+  - Background sync job pushes/pulls data to/from Supabase whenever an
+    internet connection is available.
+  - DECISION MADE: offline-first + sync (chosen over Supabase-only, which
+    would require internet on every log).
+
+3. CORE FEATURES
+-----------------
+3a. Exercise creation
+    - Fields: name (e.g. "Bench Press", "Squat", "Deadlift", "Bicep Curl"),
+      RPE, reps, weight, sets, category (e.g. leg, chest, etc.)
+    - Exercise is created ONCE (a reusable template/entry). When logging a
+      workout later, the user picks the exercise from a searchable list
+      instead of retyping the name each time.
+
+3b. Logging a session + "future log" workflow
+    - When logging a completed exercise, user has the option to increase
+      weight, reps, sets, and/or RPE for the NEXT session.
+    - If increased, the app creates a new "TBD" log entry (a planned future
+      session) that the user must confirm/verify before/at that next
+      workout, rather than the user manually re-entering the same data
+      each time.
+    - DECISION MADE: logging a session lets the user pick the date via a
+      date picker, defaulting to today. Covers forgetting to log on the
+      day, or not having time until later - the session gets recorded
+      under the day it actually happened, not necessarily "now".
+
+3c. History / progress graph
+    - Shows progression/regression over time.
+    - Color coding: green = progressed, red = regressed, default color =
+      no meaningful change.
+    - DECISION MADE: build ALL 5 progress-calculation methods (not a
+      reduced starter set). Each metric has a tooltip in the UI explaining
+      what it is and how it's calculated (shown on the history/graph
+      screen, e.g. an info icon next to the metric name).
+        * Max Strength -> Estimated 1RM formula on each set
+              - Epley:     1RM = weight x (1 + reps/30)
+              - Brzycki:   1RM = weight x 36/(37 - reps)
+              - Lombardi:  1RM = weight x reps^0.10
+              - O'Conner:  1RM = weight x (1 + 0.025 x reps)
+          (Epley and Brzycki are the most common defaults; formulas diverge
+          more at higher rep counts. Formula choice can be a setting.)
+        * Hypertrophy -> Volume Load = sets x reps x weight
+          (tracked per session and/or rolling weekly total per category)
+        * Muscular Endurance -> max reps at a fixed/bodyweight load,
+          or Density = volume / session time
+        * Autoregulated/Powerlifting -> RPE trend at matched weight &
+          reps (same load, lower RPE next time = progress); optionally
+          converted to estimated 1RM via an RPE% chart
+        * Simple/beginner -> direct field comparison vs. last session
+          (weight/reps/sets, no formula): improve >= 2 of 3 fields = green,
+          worse >= 2 of 3 = red, mixed/unchanged = default color
+    - Goal scope - DECISION MADE: BOTH. There is one global default goal
+      (app-wide setting), and each exercise can optionally override it
+      with its own goal. If an exercise has no override, it uses the
+      global default. Example: global default = "Strength", but Bicep
+      Curl is overridden to "Hypertrophy".
+      Score is compared against a rolling average of that SAME exercise's
+      last 5 sessions (e.g. Bicep Curl progress = avg of the last 5
+      Bicep Curl sessions only, never mixed with other exercises). If
+      fewer than 5 sessions exist yet for that exercise, it averages
+      whatever sessions are available so far. This N=5 window is a
+      user-adjustable setting, not hardcoded.
+    - DECISION MADE: each of the 4 estimated-1RM formula options (Epley,
+      Brzycki, Lombardi, O'Conner) has its own info icon in Settings
+      explaining what it is and how it's calculated, not just a bare
+      formula-name selector.
+    - DECISION MADE: the graph is a real line chart, not just a bare
+      line - it shows a dot for each logged session, an X axis (session
+      dates) and a Y axis (the metric's value, with min/mid/max labels).
+    - DECISION MADE: a logged session can be corrected after the fact
+      (tap it in the Session log list to edit weight/reps/sets/RPE/notes
+      and even its date). Mistakes shouldn't be permanent.
+
+3d. Reminders (decision)
+    - DECISION MADE: fixed schedule. User assigns days/times to a
+      routine (e.g. "Push day every Mon/Wed/Fri at 6pm") and the app
+      sends a local notification at that time to log/verify the
+      training. Not based on "days since last log".
+
+3e. Exercise categories (decision)
+    - DECISION MADE: predefined + custom. Ships with a default list
+      (chest, back, legs, shoulders, arms, core, cardio) and the user
+      can also type in and save new categories of their own.
+
+3f. Account / access model (decision)
+    - DECISION MADE: no login screen. App opens straight into the data,
+      backed by one fixed Supabase account configured behind the scenes
+      (no username/password entry by the end user).
+    - DECISION MADE: single-user data model. Each install is for one
+      person (no in-app profile switching / multiple people sharing one
+      install). Other people could install the app on their OWN device
+      and would get their own independent data set, but that's just a
+      separate install, not a shared multi-user feature to build.
+
+3g. TBD log confirmation flow (decision)
+    - DECISION MADE: in-app "Pending" list/screen shows all upcoming TBD
+      (auto-suggested future) logs. User opens it, reviews/edits the
+      numbers, and confirms there before or during that workout.
+
+3h. Units (decision)
+    - DECISION MADE: kg only. No lbs option, no unit-conversion logic.
+
+3i. Sync scope (decision)
+    - DECISION MADE: backup-only, single device at a time. Supabase sync
+      is a safety copy (e.g. restore after reinstall/new phone), not
+      simultaneous multi-device use. No conflict-merge logic needed.
+
+3j. Reminder notification precision (decision)
+    - DECISION MADE: approximate timing is fine (may fire a few minutes
+      late). Uses Android's regular (inexact) alarm/notification
+      scheduling - better battery life, no special "exact alarm"
+      permission needed.
+
+3k. Data export (decision)
+    - DECISION MADE: not needed. No CSV/manual export feature; Supabase
+      sync is the only backup mechanism.
+
+3l. Main screens / navigation (decision)
+    - DECISION MADE:
+        * Home - today's plan / quick actions
+        * Log Workout - log an exercise session
+        * Exercise Library - create/edit reusable exercises
+        * History & Graphs - progress view with color coding + tooltips
+        * Pending - review/confirm TBD future logs
+        * Routines & Reminders - schedule setup for notifications
+        * Body Metrics - log weight/body fat %/muscle mass %, see
+          weekly trend (see 3m)
+        * Settings - global goal default, rolling-average window (N=5),
+          etc.
+
+3m. Body metrics tracking (decision)
+    - New feature, independent from exercise logging: log body WEIGHT
+      (kg), BODY FAT %, and MUSCLE MASS % as separate manual entries
+      (e.g. read off a smart scale), each with its own timestamp. Not
+      tied to a specific exercise or workout session.
+    - DECISION MADE: comparison window is a ROLLING 7 days, not a fixed
+      Mon-Sun calendar week. For each metric, average the last 7 days of
+      entries and compare it to the average of the 7 days before that -
+      always relative to today, same rolling-window style as the
+      exercise progress calculation (3c), just calendar-day-based
+      instead of session-count-based.
+    - DECISION MADE: color-coded like exercise progress, but the "good
+      direction" per metric is a fixed fitness-app assumption, not a
+      user-configurable goal like exercises have (per user: "since this
+      is a fitness app we assume people want to lose fat and build
+      muscle"):
+        * Body fat % -> trending DOWN = green (progress), UP = red
+        * Muscle mass % -> trending UP = green (progress), DOWN = red
+        * Weight -> DECISION MADE (confirmed): stays NEUTRAL (no
+          green/red), since total weight alone doesn't have a universal
+          "good direction" (losing weight could mean fat loss - good -
+          or muscle loss - bad; gaining could mean muscle gain - good -
+          or fat gain - bad). Only body fat % and muscle mass % are
+          color-coded. No bulk/cut goal setting for weight (kept simple).
+    - DECISION MADE: Body Metrics screen is a simple log form + list of
+      past entries + the weekly trend numbers - no chart for this
+      feature (unlike exercise History & Graphs). Can be added later.
+    - Consistent with 3b (backdating), logging a body metrics entry also
+      uses a date picker defaulting to today, and past entries can be
+      edited/deleted afterward (consistent with 3c's log-editing).
+
+3n. Quality-of-life improvements (decision)
+    - DECISION MADE: the exercise picker (Log Workout, History) is a
+      type-to-filter search field, not a static dropdown - matches 3a's
+      "searchable list" wording literally instead of just listing every
+      exercise alphabetically.
+    - DECISION MADE: adding a custom category reuses an existing category
+      with the same name (case-insensitive) instead of creating a
+      duplicate row.
+    - DECISION MADE: deleting an exercise, a routine, or a body metric
+      entry asks for confirmation first ("Delete X? ...") instead of
+      deleting instantly on tap.
+    - DECISION MADE: an exercise can be edited after creation (rename,
+      change category/goal override) by tapping it in Exercise Library -
+      not just create-or-delete.
+    - DECISION MADE: forms show an inline error message instead of
+      silently doing nothing on invalid/missing input (Log Workout,
+      Pending confirm, Routines create, Body Metrics log, Exercise
+      create/edit).
+    - VERIFIED (not just built): Supabase push sync and "Restore from
+      backup" were both actually exercised against the live project
+      (forced a sync job, confirmed rows in Supabase, tapped Restore,
+      confirmed no crash) - not just reasoned through in code review.
+      Side note from that test: reseeding categories after a local schema
+      migration mid-development produced duplicate category rows in
+      Supabase (old-UUID + new-UUID sets); this is a testing artifact from
+      development churn, not a normal-usage issue, and was intentionally
+      left for the user to decide whether to clean up (truncating Supabase
+      data requires explicit confirmation, not something to do silently).
+
+4. OPEN QUESTIONS / NOT YET CLARIFIED
+--------------------------------------
+- None remaining. Requirements are complete.
+
+5. STATUS
+----------
+Requirements gathering finished. Ready to move into development
+(data model design, Android project scaffold, Supabase schema).
+
+5. CHANGE LOG
+--------------
+- Initial requirements captured from user's opening request.
+- Clarified: offline-first architecture with Supabase sync (not
+  Supabase-only), to satisfy the "no wifi required" requirement.
+- Added: researched candidate progress-measurement formulas/approaches
+  for the history/graph feature.
+- Decided: all 5 progress-calculation methods will be built, each with an
+  explanatory tooltip in the UI.
+- Decided: goal can be set both globally (app default) and per-exercise
+  (override).
+- Added: exercise needs a name field, created once and reused from a
+  searchable list when logging (not retyped each time).
+- Decided: reminders use a fixed schedule per routine (not "days since
+  last log").
+- Decided: exercise categories are predefined + user-addable custom ones.
+- Decided: progress comparison uses a rolling average of the last 5
+  sessions of the SAME exercise (per-exercise, not mixed); N=5 is
+  adjustable in settings.
+- Added: sessions can be backdated when logging (date picker, defaults
+  to today) and edited afterward from History (fix mistakes).
+- Added: History chart now has an X axis, Y axis, and dots per session,
+  not just a bare line.
+- Added: each 1RM formula (Epley/Brzycki/Lombardi/O'Conner) gets its own
+  explanatory info icon in Settings.
+- Added: new Body Metrics feature (3m) - log weight/body fat %/muscle
+  mass %, compared via rolling 7-day averages, color-coded assuming
+  "lose fat, build muscle" as the goal.
+- Confirmed: weight stays neutral (no color), only fat %/muscle % are
+  colored; Body Metrics screen is a simple log + list, no chart for now.
+- Added: searchable/type-to-filter exercise picker (Log Workout, History).
+- Fixed: duplicate custom categories are now prevented (case-insensitive
+  name reuse).
+- Added: delete confirmation dialogs for exercises, routines, and body
+  metric entries.
+- Added: exercises can be edited (name/category/goal) after creation.
+- Added: inline validation error messages across forms instead of silent
+  no-ops on bad input.
+- Fixed: a real navigation bug where tapping "Home" in the bottom bar
+  after visiting Exercise Library (a non-tab screen) got stuck showing
+  Exercise Library again instead of the actual Home screen.
+- Verified: Supabase push sync and restore-from-backup both confirmed
+  working end-to-end against the live project (not just code-reviewed).

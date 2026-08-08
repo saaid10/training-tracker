@@ -10,7 +10,7 @@ class WorkoutSetAggregatesTest {
 
     @Test
     fun `bestSet picks the set with the highest estimated 1RM, not just the heaviest weight`() {
-        // Epley: 100kg x 1 = 103.33 est 1RM; 90kg x 5 = 105.0 est 1RM — the lighter set wins.
+        // 100kg x 1 est 1RM = 100.0 (formula not applied for reps<=1); 90kg x 5 = 105.0 est 1RM — the lighter set wins.
         val sets = listOf(
             WorkoutSet(weightKg = 100.0, reps = 1),
             WorkoutSet(weightKg = 90.0, reps = 5),
@@ -79,5 +79,35 @@ class WorkoutSetAggregatesTest {
         val sets = listOf(WorkoutSet(weightKg = null, reps = 12))
         assertEquals(0.0, WorkoutSetAggregates.totalVolume(sets, ExerciseType.BODYWEIGHT), 0.001)
         assertEquals(12.0, WorkoutSetAggregates.totalEndurance(sets, ExerciseType.BODYWEIGHT), 0.001)
+    }
+
+    @Test
+    fun `repOrDuration for weighted exercises returns the set's reps`() {
+        val set = WorkoutSet(weightKg = 70.0, reps = 8)
+        val result = WorkoutSetAggregates.repOrDuration(set, ExerciseType.WEIGHTED)
+        assertEquals(8, result)
+    }
+
+    @Test
+    fun `repOrDuration for bodyweight exercises returns the set's reps`() {
+        val set = WorkoutSet(weightKg = null, reps = 12)
+        val result = WorkoutSetAggregates.repOrDuration(set, ExerciseType.BODYWEIGHT)
+        assertEquals(12, result)
+    }
+
+    @Test
+    fun `repOrDuration for timed exercises returns the set's duration`() {
+        val set = WorkoutSet(weightKg = 24.0, durationSeconds = 40)
+        val result = WorkoutSetAggregates.repOrDuration(set, ExerciseType.TIMED)
+        assertEquals(40, result)
+    }
+
+    @Test
+    fun `repOrDuration returns null when the value is null`() {
+        val weightedWithNullReps = WorkoutSet(weightKg = 70.0, reps = null)
+        assertEquals(null, WorkoutSetAggregates.repOrDuration(weightedWithNullReps, ExerciseType.WEIGHTED))
+
+        val timedWithNullDuration = WorkoutSet(weightKg = 24.0, durationSeconds = null)
+        assertEquals(null, WorkoutSetAggregates.repOrDuration(timedWithNullDuration, ExerciseType.TIMED))
     }
 }

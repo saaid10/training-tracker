@@ -19,7 +19,7 @@ object WorkoutSetAggregates {
     fun bestSet(sets: List<WorkoutSet>, type: ExerciseType, formula: OneRepMaxFormula): WorkoutSet {
         require(sets.isNotEmpty()) { "A session must have at least one set" }
         return if (type == ExerciseType.TIMED) {
-            sets.maxWithOrNull(compareBy({ it.durationSeconds ?: 0 }, { it.weightKg ?: 0.0 }))!!
+            topByDuration(sets)
         } else {
             sets.maxByOrNull { OneRepMax.estimate(formula, it.weightKg ?: 0.0, it.reps ?: 0) }!!
         }
@@ -43,7 +43,7 @@ object WorkoutSetAggregates {
     fun topSetByWeight(sets: List<WorkoutSet>, type: ExerciseType): WorkoutSet {
         require(sets.isNotEmpty()) { "A session must have at least one set" }
         return if (type == ExerciseType.TIMED) {
-            sets.maxWithOrNull(compareBy({ it.durationSeconds ?: 0 }, { it.weightKg ?: 0.0 }))!!
+            topByDuration(sets)
         } else {
             sets.maxWithOrNull(compareBy({ it.weightKg ?: 0.0 }, { it.reps ?: 0 }))!!
         }
@@ -63,4 +63,7 @@ object WorkoutSetAggregates {
     /** The reps-or-duration value of one set, matching the exercise's type — for matched-load comparisons. */
     fun repOrDuration(set: WorkoutSet, type: ExerciseType): Int? =
         if (type == ExerciseType.TIMED) set.durationSeconds else set.reps
+
+    private fun topByDuration(sets: List<WorkoutSet>): WorkoutSet =
+        sets.maxWithOrNull(compareBy({ it.durationSeconds ?: 0 }, { it.weightKg ?: 0.0 }))!!
 }

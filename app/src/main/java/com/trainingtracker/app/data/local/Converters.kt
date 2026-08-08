@@ -1,8 +1,13 @@
 package com.trainingtracker.app.data.local
 
 import androidx.room.TypeConverter
+import com.trainingtracker.app.data.local.entity.ExerciseType
 import com.trainingtracker.app.data.local.entity.LogStatus
+import com.trainingtracker.app.data.local.entity.WorkoutSet
 import com.trainingtracker.app.domain.model.Goal
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class Converters {
     @TypeConverter
@@ -30,4 +35,17 @@ class Converters {
     @TypeConverter
     fun stringToStringList(value: String): List<String> =
         if (value.isBlank()) emptyList() else value.split(",").map { it.trim() }
+
+    @TypeConverter
+    fun exerciseTypeToString(type: ExerciseType): String = type.name
+
+    @TypeConverter
+    fun stringToExerciseType(value: String): ExerciseType = ExerciseType.valueOf(value)
+
+    @TypeConverter
+    fun workoutSetListToString(list: List<WorkoutSet>): String = Json.encodeToString(list)
+
+    @TypeConverter
+    fun stringToWorkoutSetList(value: String): List<WorkoutSet> =
+        if (value.isBlank()) emptyList() else Json.decodeFromString(value)
 }

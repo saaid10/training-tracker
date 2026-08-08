@@ -37,9 +37,13 @@ data class ExerciseDto(
 
 fun Exercise.toDto() = ExerciseDto(id, name, categoryId, goalOverride?.name, createdAt, updatedAt, deleted)
 fun ExerciseDto.toEntity() = Exercise(
-    id, name, categoryId,
-    goalOverride?.let { runCatching { Goal.valueOf(it) }.getOrNull() },
-    createdAt, updatedAt, deleted,
+    id = id,
+    name = name,
+    categoryId = categoryId,
+    goalOverride = goalOverride?.let { runCatching { Goal.valueOf(it) }.getOrNull() },
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    deleted = deleted,
 )
 
 @Serializable

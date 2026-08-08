@@ -3,12 +3,16 @@ package com.trainingtracker.app.data.remote.dto
 import com.trainingtracker.app.data.local.entity.BodyMetricLog
 import com.trainingtracker.app.data.local.entity.Category
 import com.trainingtracker.app.data.local.entity.Exercise
+import com.trainingtracker.app.data.local.entity.ExerciseType
 import com.trainingtracker.app.data.local.entity.LogStatus
 import com.trainingtracker.app.data.local.entity.Routine
 import com.trainingtracker.app.data.local.entity.WorkoutLog
 import com.trainingtracker.app.domain.model.Goal
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /** Postgrest row DTOs — mirror supabase/schema.sql (snake_case columns, epoch-millis timestamps). */
 
@@ -30,20 +34,18 @@ data class ExerciseDto(
     val name: String,
     @SerialName("category_id") val categoryId: String,
     @SerialName("goal_override") val goalOverride: String?,
+    val type: String,
     @SerialName("created_at") val createdAt: Long,
     @SerialName("updated_at") val updatedAt: Long,
     val deleted: Boolean,
 )
 
-fun Exercise.toDto() = ExerciseDto(id, name, categoryId, goalOverride?.name, createdAt, updatedAt, deleted)
+fun Exercise.toDto() = ExerciseDto(id, name, categoryId, goalOverride?.name, type.name, createdAt, updatedAt, deleted)
 fun ExerciseDto.toEntity() = Exercise(
-    id = id,
-    name = name,
-    categoryId = categoryId,
-    goalOverride = goalOverride?.let { runCatching { Goal.valueOf(it) }.getOrNull() },
-    createdAt = createdAt,
-    updatedAt = updatedAt,
-    deleted = deleted,
+    id, name, categoryId,
+    goalOverride?.let { runCatching { Goal.valueOf(it) }.getOrNull() },
+    runCatching { ExerciseType.valueOf(type) }.getOrDefault(ExerciseType.WEIGHTED),
+    createdAt, updatedAt, deleted,
 )
 
 @Serializable
@@ -51,10 +53,8 @@ data class WorkoutLogDto(
     val id: String,
     @SerialName("exercise_id") val exerciseId: String,
     @SerialName("logged_at") val loggedAt: Long,
-    @SerialName("weight_kg") val weightKg: Double,
-    val reps: Int,
-    val sets: Int,
-    val rpe: Double?,
+    /** JSON-encoded List<WorkoutSet> — same encoding the local Room TypeConverter produces. */
+    val sets: String,
     val status: String,
     @SerialName("source_log_id") val sourceLogId: String?,
     val notes: String?,
@@ -63,10 +63,11 @@ data class WorkoutLogDto(
 )
 
 fun WorkoutLog.toDto() = WorkoutLogDto(
-    id, exerciseId, loggedAt, weightKg, reps, sets, rpe, status.name, sourceLogId, notes, updatedAt, deleted,
+    id, exerciseId, loggedAt, Json.encodeToString(sets), status.name, sourceLogId, notes, updatedAt, deleted,
 )
 fun WorkoutLogDto.toEntity() = WorkoutLog(
-    id, exerciseId, loggedAt, weightKg, reps, sets, rpe,
+    id, exerciseId, loggedAt,
+    if (sets.isBlank()) emptyList() else Json.decodeFromString(sets),
     runCatching { LogStatus.valueOf(status) }.getOrDefault(LogStatus.COMPLETED),
     sourceLogId, notes, updatedAt, deleted,
 )

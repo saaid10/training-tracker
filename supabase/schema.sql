@@ -20,6 +20,7 @@ create table if not exists exercises (
     name text not null,
     category_id text not null references categories(id),
     goal_override text, -- null = inherit global default. One of: STRENGTH, HYPERTROPHY, ENDURANCE, AUTOREGULATED, SIMPLE
+    type text not null default 'WEIGHTED', -- WEIGHTED, BODYWEIGHT, or TIMED — see WorkoutSet
     created_at bigint not null,
     updated_at bigint not null,
     deleted boolean not null default false
@@ -29,10 +30,7 @@ create table if not exists workout_logs (
     id text primary key,
     exercise_id text not null references exercises(id),
     logged_at bigint not null,
-    weight_kg double precision not null,
-    reps integer not null,
-    sets integer not null,
-    rpe double precision,
+    sets text not null, -- JSON-encoded list of {weightKg, reps, durationSeconds, rpe}, one per set
     status text not null default 'COMPLETED', -- COMPLETED or TBD
     source_log_id text references workout_logs(id), -- the completed log a TBD entry was generated from
     notes text,

@@ -16,7 +16,7 @@ import com.trainingtracker.app.data.local.entity.WorkoutLog
 
 @Database(
     entities = [Category::class, Exercise::class, WorkoutLog::class, Routine::class, BodyMetricLog::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

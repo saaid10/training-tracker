@@ -10,10 +10,8 @@ data class WorkoutLog(
     @PrimaryKey val id: String,
     val exerciseId: String,
     val loggedAt: Long,
-    val weightKg: Double,
-    val reps: Int,
-    val sets: Int,
-    val rpe: Double?,
+    /** One or more sets, each with independent weight/reps/duration/RPE. Stored as JSON — see Converters. */
+    val sets: List<WorkoutSet>,
     val status: LogStatus,
     /** For a TBD entry: the completed log it was suggested from. Null for completed logs. */
     val sourceLogId: String?,

@@ -2,6 +2,7 @@ package com.trainingtracker.app.data.repository
 
 import com.trainingtracker.app.data.local.dao.ExerciseDao
 import com.trainingtracker.app.data.local.entity.Exercise
+import com.trainingtracker.app.data.local.entity.ExerciseType
 import com.trainingtracker.app.domain.model.Goal
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
@@ -14,13 +15,14 @@ class ExerciseRepository(private val dao: ExerciseDao) {
 
     suspend fun getById(id: String): Exercise? = dao.getById(id)
 
-    suspend fun create(name: String, categoryId: String, goalOverride: Goal?): Exercise {
+    suspend fun create(name: String, categoryId: String, goalOverride: Goal?, type: ExerciseType): Exercise {
         val now = System.currentTimeMillis()
         val exercise = Exercise(
             id = UUID.randomUUID().toString(),
             name = name.trim(),
             categoryId = categoryId,
             goalOverride = goalOverride,
+            type = type,
             createdAt = now,
             updatedAt = now,
         )

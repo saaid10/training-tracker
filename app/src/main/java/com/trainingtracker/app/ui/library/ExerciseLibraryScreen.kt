@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.trainingtracker.app.data.local.entity.Category
 import com.trainingtracker.app.data.local.entity.Exercise
+import com.trainingtracker.app.data.local.entity.ExerciseType
 import com.trainingtracker.app.domain.model.Goal
 import com.trainingtracker.app.ui.ViewModelFactory
 
@@ -67,7 +68,7 @@ fun ExerciseLibraryScreen(factory: ViewModelFactory, onBack: () -> Unit) {
                 modifier = Modifier.padding(16.dp),
             )
             Text(
-                "Tap an exercise to rename it or change its category/goal.",
+                "Tap an exercise to rename it or change its category/goal/type.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -78,7 +79,10 @@ fun ExerciseLibraryScreen(factory: ViewModelFactory, onBack: () -> Unit) {
                     ListItem(
                         headlineContent = { Text(exercise.name) },
                         supportingContent = {
-                            Text(categoryName + (exercise.goalOverride?.let { " · goal: ${it.name}" } ?: ""))
+                            Text(
+                                "$categoryName · ${exercise.type.name}" +
+                                    (exercise.goalOverride?.let { " · goal: ${it.name}" } ?: "")
+                            )
                         },
                         trailingContent = {
                             IconButton(onClick = { deletingExercise = exercise }) {
@@ -99,8 +103,8 @@ fun ExerciseLibraryScreen(factory: ViewModelFactory, onBack: () -> Unit) {
             categories = state.categories,
             onDismiss = { showCreateDialog = false },
             onAddCategory = viewModel::addCategory,
-            onSubmit = { name, categoryId, goal ->
-                viewModel.createExercise(name, categoryId, goal)
+            onSubmit = { name, categoryId, goal, type ->
+                viewModel.createExercise(name, categoryId, goal, type)
                 showCreateDialog = false
             },
         )
@@ -113,8 +117,8 @@ fun ExerciseLibraryScreen(factory: ViewModelFactory, onBack: () -> Unit) {
             categories = state.categories,
             onDismiss = { editingExercise = null },
             onAddCategory = viewModel::addCategory,
-            onSubmit = { name, categoryId, goal ->
-                viewModel.updateExercise(exercise, name, categoryId, goal)
+            onSubmit = { name, categoryId, goal, type ->
+                viewModel.updateExercise(exercise, name, categoryId, goal, type)
                 editingExercise = null
             },
         )
@@ -143,12 +147,13 @@ private fun ExerciseFormDialog(
     categories: List<Category>,
     onDismiss: () -> Unit,
     onAddCategory: (String) -> Unit,
-    onSubmit: (String, String, Goal?) -> Unit,
+    onSubmit: (String, String, Goal?, ExerciseType) -> Unit,
 ) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var selectedCategoryId by remember { mutableStateOf(initial?.categoryId ?: categories.firstOrNull()?.id ?: "") }
     var newCategoryName by remember { mutableStateOf("") }
     var selectedGoal by remember { mutableStateOf(initial?.goalOverride) }
+    var selectedType by remember { mutableStateOf(initial?.type ?: ExerciseType.WEIGHTED) }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -204,6 +209,17 @@ private fun ExerciseFormDialog(
                     }
                 }
 
+                Text("Exercise type", style = MaterialTheme.typography.labelMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ExerciseType.entries.forEach { type ->
+                        FilterChip(
+                            selected = selectedType == type,
+                            onClick = { selectedType = type },
+                            label = { Text(type.name) },
+                        )
+                    }
+                }
+
                 Text("Goal override (optional)", style = MaterialTheme.typography.labelMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilterChip(
@@ -231,7 +247,7 @@ private fun ExerciseFormDialog(
                     else -> null
                 }
                 if (errorMessage != null) return@Button
-                onSubmit(name, selectedCategoryId, selectedGoal)
+                onSubmit(name, selectedCategoryId, selectedGoal, selectedType)
             }) { Text(if (initial == null) "Create" else "Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },

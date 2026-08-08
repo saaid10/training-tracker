@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.trainingtracker.app.AppContainer
 import com.trainingtracker.app.data.local.entity.Category
 import com.trainingtracker.app.data.local.entity.Exercise
+import com.trainingtracker.app.data.local.entity.ExerciseType
 import com.trainingtracker.app.domain.model.Goal
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,16 +22,16 @@ class ExerciseLibraryViewModel(private val container: AppContainer) : ViewModel(
     ) { exercises, categories -> ExerciseLibraryState(exercises, categories) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ExerciseLibraryState())
 
-    fun createExercise(name: String, categoryId: String, goalOverride: Goal?) {
+    fun createExercise(name: String, categoryId: String, goalOverride: Goal?, type: ExerciseType) {
         if (name.isBlank() || categoryId.isBlank()) return
-        viewModelScope.launch { container.exerciseRepository.create(name, categoryId, goalOverride) }
+        viewModelScope.launch { container.exerciseRepository.create(name, categoryId, goalOverride, type) }
     }
 
-    fun updateExercise(exercise: Exercise, name: String, categoryId: String, goalOverride: Goal?) {
+    fun updateExercise(exercise: Exercise, name: String, categoryId: String, goalOverride: Goal?, type: ExerciseType) {
         if (name.isBlank() || categoryId.isBlank()) return
         viewModelScope.launch {
             container.exerciseRepository.update(
-                exercise.copy(name = name.trim(), categoryId = categoryId, goalOverride = goalOverride)
+                exercise.copy(name = name.trim(), categoryId = categoryId, goalOverride = goalOverride, type = type)
             )
         }
     }

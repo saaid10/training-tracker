@@ -2,8 +2,10 @@ package com.trainingtracker.app.data.repository
 
 import com.trainingtracker.app.data.local.dao.ExerciseDao
 import com.trainingtracker.app.data.local.dao.WorkoutLogDao
+import com.trainingtracker.app.data.local.entity.ExerciseType
 import com.trainingtracker.app.data.local.entity.LogStatus
 import com.trainingtracker.app.data.local.entity.WorkoutLog
+import com.trainingtracker.app.data.local.entity.WorkoutSet
 import com.trainingtracker.app.data.settings.SettingsRepository
 import com.trainingtracker.app.domain.progress.ProgressCalculator
 import com.trainingtracker.app.domain.progress.ProgressResult
@@ -15,13 +17,45 @@ import java.util.UUID
 /**
  * Increments requested when confirming a completed log, used to auto-generate the next TBD
  * session (requirements.txt 3b). Any field left null means "keep the same as this session".
+ * Applied uniformly to every set in the generated TBD entry.
  */
 data class NextSessionAdjustment(
     val weightDeltaKg: Double? = null,
+    /** Also serves as the duration-delta (seconds) for TIMED exercises' sets. */
     val repsDelta: Int? = null,
     val setsDelta: Int? = null,
     val rpeDelta: Double? = null,
 )
+
+/**
+ * Applies [adjustment] to every set, then adds (duplicating the last set) or trims trailing sets
+ * per [NextSessionAdjustment.setsDelta]. Always leaves at least one set. Pure and unit-tested
+ * independently of the DAOs this repository otherwise depends on.
+ */
+internal fun applyAdjustment(
+    sets: List<WorkoutSet>,
+    exerciseType: ExerciseType,
+    adjustment: NextSessionAdjustment,
+): List<WorkoutSet> {
+    val bumped = sets.map { set ->
+        set.copy(
+            weightKg = set.weightKg?.let { it + (adjustment.weightDeltaKg ?: 0.0) },
+            reps = if (exerciseType == ExerciseType.TIMED) set.reps else set.reps?.let { it + (adjustment.repsDelta ?: 0) },
+            durationSeconds = if (exerciseType == ExerciseType.TIMED) {
+                set.durationSeconds?.let { it + (adjustment.repsDelta ?: 0) }
+            } else {
+                set.durationSeconds
+            },
+            rpe = set.rpe?.let { it + (adjustment.rpeDelta ?: 0.0) },
+        )
+    }
+    val delta = adjustment.setsDelta ?: 0
+    return when {
+        delta > 0 -> bumped + List(delta) { bumped.last() }
+        delta < 0 -> bumped.dropLast(minOf(-delta, bumped.size - 1))
+        else -> bumped
+    }
+}
 
 class LogRepository(
     private val logDao: WorkoutLogDao,
@@ -42,10 +76,8 @@ class LogRepository(
      */
     suspend fun logCompleted(
         exerciseId: String,
-        weightKg: Double,
-        reps: Int,
-        sets: Int,
-        rpe: Double?,
+        exerciseType: ExerciseType,
+        sets: List<WorkoutSet>,
         notes: String?,
         nextSession: NextSessionAdjustment? = null,
         /** Defaults to right now, but can be backdated (e.g. logging yesterday's forgotten session). */
@@ -56,10 +88,7 @@ class LogRepository(
             id = UUID.randomUUID().toString(),
             exerciseId = exerciseId,
             loggedAt = loggedAt,
-            weightKg = weightKg,
-            reps = reps,
             sets = sets,
-            rpe = rpe,
             status = LogStatus.COMPLETED,
             sourceLogId = null,
             notes = notes,
@@ -72,10 +101,7 @@ class LogRepository(
                 id = UUID.randomUUID().toString(),
                 exerciseId = exerciseId,
                 loggedAt = loggedAt, // placeholder until the routine's actual scheduled date/confirmation
-                weightKg = weightKg + (nextSession.weightDeltaKg ?: 0.0),
-                reps = reps + (nextSession.repsDelta ?: 0),
-                sets = sets + (nextSession.setsDelta ?: 0),
-                rpe = rpe?.plus(nextSession.rpeDelta ?: 0.0),
+                sets = applyAdjustment(sets, exerciseType, nextSession),
                 status = LogStatus.TBD,
                 sourceLogId = completed.id,
                 notes = null,
@@ -90,22 +116,12 @@ class LogRepository(
      * Confirms a TBD entry from the Pending screen (requirements.txt 3g): the user reviews/edits
      * the auto-suggested numbers, then it becomes a real COMPLETED log for today.
      */
-    suspend fun confirmPending(
-        id: String,
-        weightKg: Double,
-        reps: Int,
-        sets: Int,
-        rpe: Double?,
-        notes: String?,
-    ) {
+    suspend fun confirmPending(id: String, sets: List<WorkoutSet>, notes: String?) {
         val existing = logDao.getById(id) ?: return
         logDao.update(
             existing.copy(
                 loggedAt = System.currentTimeMillis(),
-                weightKg = weightKg,
-                reps = reps,
                 sets = sets,
-                rpe = rpe,
                 status = LogStatus.COMPLETED,
                 notes = notes,
                 updatedAt = System.currentTimeMillis(),
@@ -119,23 +135,12 @@ class LogRepository(
     }
 
     /** Corrects a mistake in an already-completed log (e.g. wrong weight/reps entered). */
-    suspend fun updateCompleted(
-        id: String,
-        weightKg: Double,
-        reps: Int,
-        sets: Int,
-        rpe: Double?,
-        notes: String?,
-        loggedAt: Long,
-    ) {
+    suspend fun updateCompleted(id: String, sets: List<WorkoutSet>, notes: String?, loggedAt: Long) {
         val existing = logDao.getById(id) ?: return
         logDao.update(
             existing.copy(
                 loggedAt = loggedAt,
-                weightKg = weightKg,
-                reps = reps,
                 sets = sets,
-                rpe = rpe,
                 notes = notes,
                 updatedAt = System.currentTimeMillis(),
             )

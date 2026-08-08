@@ -31,7 +31,7 @@ object ProgressCalculator {
         }
         val current = completedLogsNewestFirst.first()
         val priorSessions = completedLogsNewestFirst.drop(1).take(rollingWindow)
-        val metric = ProgressMetrics.forGoal(effectiveGoal(exercise, globalDefaultGoal), oneRepMaxFormula)
+        val metric = ProgressMetrics.forGoal(effectiveGoal(exercise, globalDefaultGoal), oneRepMaxFormula, exercise.type)
         return metric.evaluate(current, priorSessions)
     }
 }

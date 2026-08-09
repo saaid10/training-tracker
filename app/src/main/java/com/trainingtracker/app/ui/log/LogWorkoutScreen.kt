@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,9 +31,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.trainingtracker.app.data.local.entity.ExerciseType
 import com.trainingtracker.app.data.repository.NextSessionAdjustment
 import com.trainingtracker.app.ui.ViewModelFactory
 import com.trainingtracker.app.ui.components.SearchableExercisePicker
+import com.trainingtracker.app.ui.components.SetListEditor
+import com.trainingtracker.app.ui.components.SetRowState
+import com.trainingtracker.app.ui.components.hasErrors
+import com.trainingtracker.app.ui.components.toWorkoutSets
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -44,10 +50,9 @@ fun LogWorkoutScreen(factory: ViewModelFactory) {
     val exercises by viewModel.exercises.collectAsState()
 
     var selectedExerciseId by remember { mutableStateOf("") }
-    var weight by remember { mutableStateOf("") }
-    var reps by remember { mutableStateOf("") }
-    var sets by remember { mutableStateOf("") }
-    var rpe by remember { mutableStateOf("") }
+    val exerciseType = exercises.firstOrNull { it.id == selectedExerciseId }?.type ?: ExerciseType.WEIGHTED
+
+    var setRows by remember { mutableStateOf(listOf(SetRowState())) }
     var notes by remember { mutableStateOf("") }
 
     var planNext by remember { mutableStateOf(false) }
@@ -62,6 +67,11 @@ fun LogWorkoutScreen(factory: ViewModelFactory) {
     // Defaults to today; the user can back-date a forgotten/late log via the date picker below.
     var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
+
+    // Set rows depend on which fields the exercise's type exposes, so reset them on exercise change.
+    LaunchedEffect(selectedExerciseId) {
+        setRows = listOf(SetRowState())
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -79,30 +89,8 @@ fun LogWorkoutScreen(factory: ViewModelFactory) {
             Text("Date: " + SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(selectedDateMillis)))
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = weight, onValueChange = { weight = it }, label = { Text("Weight (kg)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedTextField(
-                value = reps, onValueChange = { reps = it }, label = { Text("Reps") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = sets, onValueChange = { sets = it }, label = { Text("Sets") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedTextField(
-                value = rpe, onValueChange = { rpe = it }, label = { Text("RPE (optional)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f),
-            )
-        }
+        SetListEditor(exerciseType = exerciseType, rows = setRows, onRowsChange = { setRows = it })
+
         OutlinedTextField(
             value = notes, onValueChange = { notes = it }, label = { Text("Notes (optional)") },
             modifier = Modifier.fillMaxWidth(),
@@ -126,7 +114,8 @@ fun LogWorkoutScreen(factory: ViewModelFactory) {
                     modifier = Modifier.weight(1f),
                 )
                 OutlinedTextField(
-                    value = repsDelta, onValueChange = { repsDelta = it }, label = { Text("+reps") },
+                    value = repsDelta, onValueChange = { repsDelta = it },
+                    label = { Text(if (exerciseType == ExerciseType.TIMED) "+seconds" else "+reps") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
                 )
@@ -151,18 +140,12 @@ fun LogWorkoutScreen(factory: ViewModelFactory) {
         Button(
             onClick = {
                 confirmationMessage = null
-                val weightKg = weight.toDoubleOrNull()
-                val repsInt = reps.toIntOrNull()
-                val setsInt = sets.toIntOrNull()
                 errorMessage = when {
                     selectedExerciseId.isBlank() -> "Select an exercise"
-                    weightKg == null -> "Enter a valid weight"
-                    repsInt == null -> "Enter a valid rep count"
-                    setsInt == null -> "Enter a valid set count"
+                    setRows.hasErrors(exerciseType) -> "Fix the highlighted set(s)"
                     else -> null
                 }
-                if (errorMessage != null || weightKg == null || repsInt == null || setsInt == null) return@Button
-                val rpeVal = rpe.toDoubleOrNull()
+                if (errorMessage != null) return@Button
                 val adjustment = if (planNext) {
                     NextSessionAdjustment(
                         weightDeltaKg = weightDelta.toDoubleOrNull(),
@@ -173,12 +156,13 @@ fun LogWorkoutScreen(factory: ViewModelFactory) {
                 } else null
 
                 viewModel.logSession(
-                    selectedExerciseId, weightKg, repsInt, setsInt, rpeVal, notes.ifBlank { null }, adjustment,
-                    selectedDateMillis,
+                    selectedExerciseId, exerciseType, setRows.toWorkoutSets(exerciseType),
+                    notes.ifBlank { null }, adjustment, selectedDateMillis,
                 ) {
                     confirmationMessage = "Session logged" + if (planNext) " — next session added to Pending" else ""
                     selectedExerciseId = ""
-                    weight = ""; reps = ""; sets = ""; rpe = ""; notes = ""
+                    setRows = listOf(SetRowState())
+                    notes = ""
                     weightDelta = ""; repsDelta = ""; setsDelta = ""; rpeDelta = ""; planNext = false
                     selectedDateMillis = System.currentTimeMillis()
                 }

@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trainingtracker.app.AppContainer
 import com.trainingtracker.app.data.local.entity.Exercise
+import com.trainingtracker.app.data.local.entity.ExerciseType
+import com.trainingtracker.app.data.local.entity.WorkoutSet
 import com.trainingtracker.app.data.repository.NextSessionAdjustment
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,18 +18,16 @@ class LogWorkoutViewModel(private val container: AppContainer) : ViewModel() {
 
     fun logSession(
         exerciseId: String,
-        weightKg: Double,
-        reps: Int,
-        sets: Int,
-        rpe: Double?,
+        exerciseType: ExerciseType,
+        sets: List<WorkoutSet>,
         notes: String?,
         nextSession: NextSessionAdjustment?,
         loggedAt: Long,
         onDone: () -> Unit,
     ) {
-        if (exerciseId.isBlank() || weightKg < 0 || reps <= 0 || sets <= 0) return
+        if (exerciseId.isBlank() || sets.isEmpty()) return
         viewModelScope.launch {
-            container.logRepository.logCompleted(exerciseId, weightKg, reps, sets, rpe, notes, nextSession, loggedAt)
+            container.logRepository.logCompleted(exerciseId, exerciseType, sets, notes, nextSession, loggedAt)
             onDone()
         }
     }

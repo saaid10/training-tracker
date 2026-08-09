@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -24,7 +25,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.trainingtracker.app.data.local.entity.WorkoutSet
 import com.trainingtracker.app.ui.ViewModelFactory
+import com.trainingtracker.app.ui.components.SetListEditor
+import com.trainingtracker.app.ui.components.hasErrors
+import com.trainingtracker.app.ui.components.summaryText
+import com.trainingtracker.app.ui.components.toRowStates
+import com.trainingtracker.app.ui.components.toWorkoutSets
 
 @Composable
 fun PendingScreen(factory: ViewModelFactory) {
@@ -44,10 +51,7 @@ fun PendingScreen(factory: ViewModelFactory) {
             items(items, key = { it.log.id }) { item ->
                 ListItem(
                     headlineContent = { Text(item.exerciseName) },
-                    supportingContent = {
-                        Text("${item.log.weightKg}kg x ${item.log.reps} reps x ${item.log.sets} sets" +
-                            (item.log.rpe?.let { " · RPE $it" } ?: ""))
-                    },
+                    supportingContent = { Text(item.log.sets.summaryText(item.exerciseType)) },
                     trailingContent = {
                         Button(onClick = { editing = item }) { Text("Review") }
                     },
@@ -61,46 +65,42 @@ fun PendingScreen(factory: ViewModelFactory) {
             item = item,
             onDismiss = { editing = null },
             onDiscard = { viewModel.discard(item.log.id); editing = null },
-            onConfirm = { weight, reps, sets, rpe, notes ->
-                viewModel.confirm(item.log.id, weight, reps, sets, rpe, notes)
+            onConfirm = { sets, notes ->
+                viewModel.confirm(item.log.id, sets, notes)
                 editing = null
             },
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConfirmPendingDialog(
     item: PendingItem,
     onDismiss: () -> Unit,
     onDiscard: () -> Unit,
-    onConfirm: (Double, Int, Int, Double?, String?) -> Unit,
+    onConfirm: (List<WorkoutSet>, String?) -> Unit,
 ) {
-    var weight by remember { mutableStateOf(item.log.weightKg.toString()) }
-    var reps by remember { mutableStateOf(item.log.reps.toString()) }
-    var sets by remember { mutableStateOf(item.log.sets.toString()) }
-    var rpe by remember { mutableStateOf(item.log.rpe?.toString() ?: "") }
+    var rows by remember { mutableStateOf(item.log.sets.toRowStates()) }
     var notes by remember { mutableStateOf(item.log.notes ?: "") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Confirm: ${item.exerciseName}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = weight, onValueChange = { weight = it }, label = { Text("Weight (kg)") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = reps, onValueChange = { reps = it }, label = { Text("Reps") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = sets, onValueChange = { sets = it }, label = { Text("Sets") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = rpe, onValueChange = { rpe = it }, label = { Text("RPE (optional)") }, modifier = Modifier.fillMaxWidth())
+                SetListEditor(exerciseType = item.exerciseType, rows = rows, onRowsChange = { rows = it })
                 OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes") }, modifier = Modifier.fillMaxWidth())
+                errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 OutlinedButton(onClick = onDiscard, modifier = Modifier.fillMaxWidth()) { Text("Discard this planned session") }
             }
         },
         confirmButton = {
             Button(onClick = {
-                val w = weight.toDoubleOrNull() ?: return@Button
-                val r = reps.toIntOrNull() ?: return@Button
-                val s = sets.toIntOrNull() ?: return@Button
-                onConfirm(w, r, s, rpe.toDoubleOrNull(), notes.ifBlank { null })
+                errorMessage = if (rows.hasErrors(item.exerciseType)) "Fix the highlighted set(s)" else null
+                if (errorMessage != null) return@Button
+                onConfirm(rows.toWorkoutSets(item.exerciseType), notes.ifBlank { null })
             }) { Text("Confirm as done") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },

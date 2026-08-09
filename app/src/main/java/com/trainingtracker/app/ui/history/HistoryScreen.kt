@@ -36,10 +36,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.trainingtracker.app.data.local.entity.ExerciseType
 import com.trainingtracker.app.data.local.entity.WorkoutLog
+import com.trainingtracker.app.data.local.entity.WorkoutSet
 import com.trainingtracker.app.domain.progress.ProgressTrend
 import com.trainingtracker.app.ui.ViewModelFactory
 import com.trainingtracker.app.ui.components.SearchableExercisePicker
+import com.trainingtracker.app.ui.components.SetListEditor
+import com.trainingtracker.app.ui.components.hasErrors
+import com.trainingtracker.app.ui.components.summaryText
+import com.trainingtracker.app.ui.components.toRowStates
+import com.trainingtracker.app.ui.components.toWorkoutSets
 import com.trainingtracker.app.ui.theme.ProgressGreen
 import com.trainingtracker.app.ui.theme.ProgressRed
 import java.text.SimpleDateFormat
@@ -53,6 +60,7 @@ fun HistoryScreen(factory: ViewModelFactory) {
     val state by viewModel.state.collectAsState()
     var showTooltip by remember { mutableStateOf(false) }
     var editingLog by remember { mutableStateOf<WorkoutLog?>(null) }
+    val exerciseType = state.selectedExerciseType ?: ExerciseType.WEIGHTED
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("History & Graphs", style = MaterialTheme.typography.headlineSmall)
@@ -99,14 +107,9 @@ fun HistoryScreen(factory: ViewModelFactory) {
             LazyColumn {
                 items(state.logsNewestFirst, key = { it.id }) { log ->
                     ListItem(
-                        headlineContent = {
-                            Text("${log.weightKg}kg x ${log.reps} reps x ${log.sets} sets")
-                        },
+                        headlineContent = { Text(log.sets.summaryText(exerciseType)) },
                         supportingContent = {
-                            Text(
-                                SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault())
-                                    .format(Date(log.loggedAt)) + (log.rpe?.let { " · RPE $it" } ?: ""),
-                            )
+                            Text(SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()).format(Date(log.loggedAt)))
                         },
                         modifier = Modifier.clickable { editingLog = log },
                     )
@@ -129,9 +132,10 @@ fun HistoryScreen(factory: ViewModelFactory) {
     editingLog?.let { log ->
         EditLogDialog(
             log = log,
+            exerciseType = exerciseType,
             onDismiss = { editingLog = null },
-            onSave = { weight, reps, sets, rpe, notes, loggedAt ->
-                viewModel.updateLog(log.id, weight, reps, sets, rpe, notes, loggedAt)
+            onSave = { sets, notes, loggedAt ->
+                viewModel.updateLog(log.id, sets, notes, loggedAt)
                 editingLog = null
             },
         )
@@ -142,13 +146,11 @@ fun HistoryScreen(factory: ViewModelFactory) {
 @Composable
 private fun EditLogDialog(
     log: WorkoutLog,
+    exerciseType: ExerciseType,
     onDismiss: () -> Unit,
-    onSave: (Double, Int, Int, Double?, String?, Long) -> Unit,
+    onSave: (List<WorkoutSet>, String?, Long) -> Unit,
 ) {
-    var weight by remember { mutableStateOf(log.weightKg.toString()) }
-    var reps by remember { mutableStateOf(log.reps.toString()) }
-    var sets by remember { mutableStateOf(log.sets.toString()) }
-    var rpe by remember { mutableStateOf(log.rpe?.toString() ?: "") }
+    var rows by remember { mutableStateOf(log.sets.toRowStates()) }
     var notes by remember { mutableStateOf(log.notes ?: "") }
     var loggedAt by remember { mutableStateOf(log.loggedAt) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -162,27 +164,16 @@ private fun EditLogDialog(
                 OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.fillMaxWidth()) {
                     Text("Date: " + SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(loggedAt)))
                 }
-                OutlinedTextField(value = weight, onValueChange = { weight = it }, label = { Text("Weight (kg)") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = reps, onValueChange = { reps = it }, label = { Text("Reps") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = sets, onValueChange = { sets = it }, label = { Text("Sets") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = rpe, onValueChange = { rpe = it }, label = { Text("RPE (optional)") }, modifier = Modifier.fillMaxWidth())
+                SetListEditor(exerciseType = exerciseType, rows = rows, onRowsChange = { rows = it })
                 OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes") }, modifier = Modifier.fillMaxWidth())
                 errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
             Button(onClick = {
-                val w = weight.toDoubleOrNull()
-                val r = reps.toIntOrNull()
-                val s = sets.toIntOrNull()
-                errorMessage = when {
-                    w == null -> "Enter a valid weight"
-                    r == null -> "Enter a valid rep count"
-                    s == null -> "Enter a valid set count"
-                    else -> null
-                }
-                if (w == null || r == null || s == null) return@Button
-                onSave(w, r, s, rpe.toDoubleOrNull(), notes.ifBlank { null }, loggedAt)
+                errorMessage = if (rows.hasErrors(exerciseType)) "Fix the highlighted set(s)" else null
+                if (errorMessage != null) return@Button
+                onSave(rows.toWorkoutSets(exerciseType), notes.ifBlank { null }, loggedAt)
             }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },

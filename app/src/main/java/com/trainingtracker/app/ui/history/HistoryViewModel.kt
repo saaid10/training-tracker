@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trainingtracker.app.AppContainer
 import com.trainingtracker.app.data.local.entity.Exercise
+import com.trainingtracker.app.data.local.entity.ExerciseType
 import com.trainingtracker.app.data.local.entity.WorkoutLog
+import com.trainingtracker.app.data.local.entity.WorkoutSet
 import com.trainingtracker.app.domain.progress.ProgressCalculator
 import com.trainingtracker.app.domain.progress.ProgressMetrics
 import com.trainingtracker.app.domain.progress.ProgressResult
@@ -21,6 +23,7 @@ import kotlinx.coroutines.launch
 data class HistoryState(
     val exercises: List<Exercise> = emptyList(),
     val selectedExerciseId: String? = null,
+    val selectedExerciseType: ExerciseType? = null,
     val logsNewestFirst: List<WorkoutLog> = emptyList(),
     val progress: ProgressResult? = null,
     val metricName: String = "",
@@ -51,9 +54,10 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
                     val exercise = exercises.firstOrNull { it.id == effectiveId }
                     val progress = exercise?.let { ProgressCalculator.evaluate(it, logs, globalGoal, window, formula) }
                     val goal = exercise?.let { ProgressCalculator.effectiveGoal(it, globalGoal) } ?: globalGoal
-                    val metric = ProgressMetrics.forGoal(goal, formula)
+                    val exerciseType = exercise?.type ?: ExerciseType.WEIGHTED
+                    val metric = ProgressMetrics.forGoal(goal, formula, exerciseType)
                     val chartPoints = logs.reversed().map { ChartPoint(it.loggedAt, metric.chartScore(it)) }
-                    HistoryState(exercises, effectiveId, logs, progress, metric.displayName, metric.tooltip, chartPoints)
+                    HistoryState(exercises, effectiveId, exerciseType, logs, progress, metric.displayName, metric.tooltip, chartPoints)
                 }
             }
         }
@@ -64,9 +68,9 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /** Corrects a mistake in an already-logged session (requirements: logs must be editable). */
-    fun updateLog(id: String, weightKg: Double, reps: Int, sets: Int, rpe: Double?, notes: String?, loggedAt: Long) {
+    fun updateLog(id: String, sets: List<WorkoutSet>, notes: String?, loggedAt: Long) {
         viewModelScope.launch {
-            container.logRepository.updateCompleted(id, weightKg, reps, sets, rpe, notes, loggedAt)
+            container.logRepository.updateCompleted(id, sets, notes, loggedAt)
         }
     }
 }

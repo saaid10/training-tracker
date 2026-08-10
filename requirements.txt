@@ -26,14 +26,26 @@ progress each training session (native Android app).
 -----------------
 3a. Exercise creation
     - Fields: name (e.g. "Bench Press", "Squat", "Deadlift", "Bicep Curl"),
-      RPE, reps, weight, sets, category (e.g. leg, chest, etc.)
+      category (e.g. leg, chest, etc.), and a type: Weighted (requires
+      weight+reps per set), Bodyweight (reps required, weight optional —
+      e.g. dips, pull-ups, with or without added load), or Timed (duration
+      required per set, weight optional — e.g. planks, farmer's carries).
+      RPE, reps/duration, and weight are entered per SET when logging a
+      session (see 3b), not stored on the exercise itself.
     - Exercise is created ONCE (a reusable template/entry). When logging a
       workout later, the user picks the exercise from a searchable list
       instead of retyping the name each time.
 
 3b. Logging a session + "future log" workflow
+    - A logged session is one or more individual SETS, each with its own
+      weight/reps (or weight/duration for Timed exercises) and optional
+      RPE — e.g. set 1 at 70kg x 8, sets 2-3 at 80kg x 6, all in the same
+      session. Sets can be added/removed freely; at least one set is
+      required to log a session.
     - When logging a completed exercise, user has the option to increase
-      weight, reps, sets, and/or RPE for the NEXT session.
+      weight, reps (or duration, for Timed exercises), and/or RPE for the
+      NEXT session, applied uniformly to every set, plus add/remove a
+      number of sets.
     - If increased, the app creates a new "TBD" log entry (a planned future
       session) that the user must confirm/verify before/at that next
       workout, rather than the user manually re-entering the same data
@@ -68,6 +80,16 @@ progress each training session (native Android app).
         * Simple/beginner -> direct field comparison vs. last session
           (weight/reps/sets, no formula): improve >= 2 of 3 fields = green,
           worse >= 2 of 3 = red, mixed/unchanged = default color
+    - DECISION MADE: since sessions can now have multiple sets with
+      independent weight/reps, and exercises can be Bodyweight or Timed,
+      each metric uses a consistent "which set/number represents this
+      session" rule: Strength and Autoregulated use the session's best
+      set (by estimated 1RM, or by weight x duration for Timed); Volume
+      and Endurance sum across ALL sets in the session; Simple Comparison
+      uses the session's heaviest/longest top set (no formula). For Timed
+      exercises, the Strength metric substitutes a load x time (weight x
+      duration) score for the estimated-1RM formulas, since there's no
+      rep count to plug in.
     - Goal scope - DECISION MADE: BOTH. There is one global default goal
       (app-wide setting), and each exercise can optionally override it
       with its own goal. If an exercise has no override, it uses the
@@ -259,3 +281,11 @@ Requirements gathering finished. Ready to move into development
   Exercise Library again instead of the actual Home screen.
 - Verified: Supabase push sync and restore-from-backup both confirmed
   working end-to-end against the live project (not just code-reviewed).
+- Added: exercises now have a type (Weighted/Bodyweight/Timed) determining
+  which fields a logged set requires; a logged session is one or more
+  individual sets with independent weight/reps/duration/RPE, not a single
+  weight/reps/sets-count triple.
+- Fixed: a silent-failure bug where logging a session with a zero rep or
+  set count was dropped with no confirmation and no error message,
+  violating the inline-error requirement (3n). Per-set logging removes
+  the top-level sets-count field the old silent guard was checking.

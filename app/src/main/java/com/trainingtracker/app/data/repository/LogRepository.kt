@@ -37,6 +37,9 @@ internal fun applyAdjustment(
     exerciseType: ExerciseType,
     adjustment: NextSessionAdjustment,
 ): List<WorkoutSet> {
+    // Defensive: a corrupted/edge-case empty `sets` list (see WorkoutSetAggregates' fallback
+    // comment) would otherwise crash on `bumped.last()`/`dropLast` below. Nothing to adjust.
+    if (sets.isEmpty()) return emptyList()
     val bumped = sets.map { set ->
         set.copy(
             weightKg = set.weightKg?.let { it + (adjustment.weightDeltaKg ?: 0.0) },

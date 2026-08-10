@@ -42,4 +42,12 @@ class LogRepositoryAdjustmentTest {
         val result = applyAdjustment(sets, ExerciseType.WEIGHTED, NextSessionAdjustment())
         assertEquals(sets, result)
     }
+
+    // A corrupted/edge-case empty `sets` list (see WorkoutSetAggregatesTest's empty-list cases)
+    // would otherwise crash on `bumped.last()`/`dropLast` — must be a no-op instead.
+    @Test
+    fun `applyAdjustment on an empty list returns an empty list without crashing`() {
+        val result = applyAdjustment(emptyList(), ExerciseType.WEIGHTED, NextSessionAdjustment(setsDelta = 2))
+        assertEquals(emptyList<WorkoutSet>(), result)
+    }
 }

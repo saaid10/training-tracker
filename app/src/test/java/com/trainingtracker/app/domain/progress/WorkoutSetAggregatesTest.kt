@@ -110,4 +110,33 @@ class WorkoutSetAggregatesTest {
         val timedWithNullDuration = WorkoutSet(weightKg = 24.0, durationSeconds = null)
         assertEquals(null, WorkoutSetAggregates.repOrDuration(timedWithNullDuration, ExerciseType.TIMED))
     }
+
+    // A session is supposed to always have >=1 set (enforced at entry by SetListEditor's
+    // hasErrors), but a corrupted/edge-case Supabase restore can still decode an empty list
+    // (Converters.kt/Dtos.kt both treat a blank string as emptyList()). bestSet/topSetByWeight
+    // must return a safe "no data" fallback instead of throwing, so History doesn't crash.
+
+    @Test
+    fun `bestSet on an empty list returns an all-null fallback instead of throwing`() {
+        val best = WorkoutSetAggregates.bestSet(emptyList(), ExerciseType.WEIGHTED, OneRepMaxFormula.EPLEY)
+        assertEquals(WorkoutSet(), best)
+    }
+
+    @Test
+    fun `bestSet on an empty list returns an all-null fallback for timed exercises too`() {
+        val best = WorkoutSetAggregates.bestSet(emptyList(), ExerciseType.TIMED, OneRepMaxFormula.EPLEY)
+        assertEquals(WorkoutSet(), best)
+    }
+
+    @Test
+    fun `topSetByWeight on an empty list returns an all-null fallback instead of throwing`() {
+        val top = WorkoutSetAggregates.topSetByWeight(emptyList(), ExerciseType.WEIGHTED)
+        assertEquals(WorkoutSet(), top)
+    }
+
+    @Test
+    fun `bestSetScore on an empty list is zero, not a thrown exception`() {
+        val score = WorkoutSetAggregates.bestSetScore(emptyList(), ExerciseType.WEIGHTED, OneRepMaxFormula.EPLEY)
+        assertEquals(0.0, score, 0.001)
+    }
 }

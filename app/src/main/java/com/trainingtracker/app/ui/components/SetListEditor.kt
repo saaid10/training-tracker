@@ -40,22 +40,30 @@ fun List<WorkoutSet>.toRowStates(): List<SetRowState> = map { it.toRowState() }
 
 /**
  * Inline validation error for one row, or null if it's valid for [type] — requirements.txt 3n:
- * never a silent no-op on bad input.
+ * never a silent no-op on bad input. Checks both parseability AND value ranges (reps/duration
+ * must be positive, weight can't be negative) — the deleted old flat-input guard used to reject
+ * `weightKg < 0 || reps <= 0 || sets <= 0`; these checks are that guard's per-set equivalent, so
+ * per-set logging doesn't trade a silent-drop bug for a silent-accept-garbage one.
  */
 fun SetRowState.validationError(type: ExerciseType): String? {
-    if (weight.isNotBlank() && weight.toDoubleOrNull() == null) return "Enter a valid weight or leave it blank"
+    val parsedWeight = weight.toDoubleOrNull()
+    if (weight.isNotBlank() && parsedWeight == null) return "Enter a valid weight or leave it blank"
+    if (parsedWeight != null && parsedWeight < 0) return "Weight can't be negative"
     return when (type) {
         ExerciseType.WEIGHTED -> when {
-            weight.isBlank() || weight.toDoubleOrNull() == null -> "Enter a valid weight"
-            reps.toIntOrNull() == null -> "Enter a valid rep count"
+            weight.isBlank() || parsedWeight == null -> "Enter a valid weight"
+            reps.toIntOrNull()?.takeIf { it > 0 } == null -> "Reps must be at least 1"
             else -> null
         }
-        ExerciseType.BODYWEIGHT -> if (reps.toIntOrNull() == null) "Enter a valid rep count" else null
-        ExerciseType.TIMED -> if (durationSeconds.toIntOrNull() == null) "Enter a valid duration (seconds)" else null
+        ExerciseType.BODYWEIGHT ->
+            if (reps.toIntOrNull()?.takeIf { it > 0 } == null) "Reps must be at least 1" else null
+        ExerciseType.TIMED ->
+            if (durationSeconds.toIntOrNull()?.takeIf { it > 0 } == null) "Duration must be at least 1 second" else null
     }
 }
 
-fun List<SetRowState>.hasErrors(type: ExerciseType): Boolean = any { it.validationError(type) != null }
+/** An empty row list is itself invalid — a session must have at least one set (see WorkoutSetAggregates). */
+fun List<SetRowState>.hasErrors(type: ExerciseType): Boolean = isEmpty() || any { it.validationError(type) != null }
 
 fun SetRowState.toWorkoutSet(type: ExerciseType): WorkoutSet = WorkoutSet(
     weightKg = weight.toDoubleOrNull(),

@@ -17,7 +17,11 @@ object WorkoutSetAggregates {
      * explicitly formula-based.
      */
     fun bestSet(sets: List<WorkoutSet>, type: ExerciseType, formula: OneRepMaxFormula): WorkoutSet {
-        require(sets.isNotEmpty()) { "A session must have at least one set" }
+        // Sessions are supposed to always have >=1 set (enforced at entry by SetListEditor's
+        // hasErrors), but a corrupted/edge-case Supabase restore can still decode an empty list
+        // (Converters.kt/Dtos.kt both treat a blank string as emptyList()) — fall back to an
+        // all-null WorkoutSet ("no data") instead of throwing into a ViewModel's stateIn flow.
+        if (sets.isEmpty()) return WorkoutSet()
         return if (type == ExerciseType.TIMED) {
             topByDuration(sets)
         } else {
@@ -41,7 +45,8 @@ object WorkoutSetAggregates {
      * Comparison metric, which is explicitly "no formula" per its own tooltip.
      */
     fun topSetByWeight(sets: List<WorkoutSet>, type: ExerciseType): WorkoutSet {
-        require(sets.isNotEmpty()) { "A session must have at least one set" }
+        // See bestSet's comment above: defensive fallback for a corrupted/edge-case empty list.
+        if (sets.isEmpty()) return WorkoutSet()
         return if (type == ExerciseType.TIMED) {
             topByDuration(sets)
         } else {

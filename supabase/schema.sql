@@ -6,6 +6,13 @@
 -- Timestamps are stored as bigint epoch-millis (not timestamptz) to match
 -- Room's Long timestamps exactly, avoiding ISO8601/timezone conversion on
 -- every sync.
+--
+-- `create table if not exists` below only creates tables in the CURRENT
+-- shape on a brand-new project. If you already have a live project from
+-- BEFORE the per-set/Bodyweight/Timed logging redesign, its old-shape
+-- tables already exist and none of these `if not exists` clauses will
+-- update them — see schema-migrations.sql (sibling file) for the manual
+-- migration path.
 
 create table if not exists categories (
     id text primary key,

@@ -1,36 +1,41 @@
 package com.trainingtracker.app.ui.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 
 /** Progress color coding (requirements.txt 3c): green = progressed, red = regressed. */
 val ProgressGreen = Color(0xFF2E7D32)
 val ProgressRed = Color(0xFFC62828)
 
-private val LightColors = lightColorScheme()
-private val DarkColors = darkColorScheme()
+private val IronColors = darkColorScheme(
+    primary = TrainingColors.Accent,
+    onPrimary = TrainingColors.Chalk,
+    secondary = TrainingColors.Accent,
+    onSecondary = TrainingColors.Chalk,
+    background = TrainingColors.Background,
+    onBackground = TrainingColors.Chalk,
+    surface = TrainingColors.Panel,
+    onSurface = TrainingColors.Chalk,
+    surfaceVariant = TrainingColors.PanelAlt,
+    onSurfaceVariant = TrainingColors.ChalkDim,
+    error = ProgressRed,
+    onError = TrainingColors.Chalk,
+    outline = TrainingColors.PanelAlt,
+)
 
+/**
+ * Deliberately single-world: an "iron ledger" dark theme (charcoal/graphite/chalk with one
+ * barbell-plate red accent), used regardless of system light/dark setting or wallpaper — no
+ * Material You dynamic color, matching the sibling MartialArtsTimer app's approach of committing
+ * to one fixed identity instead of following the system theme.
+ */
 @Composable
-fun TrainingTrackerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColors
-        else -> LightColors
-    }
-    MaterialTheme(colorScheme = colorScheme, content = content)
+fun TrainingTrackerTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = IronColors,
+        typography = TrainingTypography,
+        content = content,
+    )
 }

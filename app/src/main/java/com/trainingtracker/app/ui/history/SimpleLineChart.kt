@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
@@ -28,6 +27,7 @@ fun SimpleLineChart(pointsOldestFirst: List<ChartPoint>, modifier: Modifier = Mo
     val lineColor = MaterialTheme.colorScheme.primary
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val pointHaloColor = MaterialTheme.colorScheme.surface
     val density = LocalDensity.current
 
     val axisLabelPaint = remember(labelColor) {
@@ -109,7 +109,7 @@ fun SimpleLineChart(pointsOldestFirst: List<ChartPoint>, modifier: Modifier = Mo
             drawLine(color = lineColor, start = offsets[i], end = offsets[i + 1], strokeWidth = 5f)
         }
         offsets.forEach { offset ->
-            drawCircle(color = Color.White, radius = 9f, center = offset)
+            drawCircle(color = pointHaloColor, radius = 9f, center = offset)
             drawCircle(color = lineColor, radius = 7f, center = offset)
         }
     }

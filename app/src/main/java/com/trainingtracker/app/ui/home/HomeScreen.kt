@@ -1,10 +1,15 @@
 package com.trainingtracker.app.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MonitorWeight
@@ -23,6 +28,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.trainingtracker.app.ui.ViewModelFactory
 import com.trainingtracker.app.ui.navigation.EXERCISE_LIBRARY_ROUTE
 import com.trainingtracker.app.ui.navigation.Screen
+import com.trainingtracker.app.ui.theme.TrainingColors
 
 @Composable
 fun HomeScreen(factory: ViewModelFactory, onNavigate: (String) -> Unit) {
@@ -72,9 +78,16 @@ private fun QuickActionCard(
     onClick: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Column(horizontalAlignment = Alignment.Start) {
-                Icon(icon, contentDescription = null)
+        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(TrainingColors.Accent, RoundedCornerShape(4.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = TrainingColors.Chalk)
+            }
+            Column(horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall)
             }

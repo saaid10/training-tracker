@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#1B5E20</color>
+    <!-- Matches TrainingColors.Background in ui/theme — avoids a white flash before Compose loads. -->
+    <color name="window_background">#1C1B1A</color>
 </resources>

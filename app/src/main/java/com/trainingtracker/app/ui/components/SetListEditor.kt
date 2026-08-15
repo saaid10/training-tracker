@@ -1,8 +1,10 @@
 package com.trainingtracker.app.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -16,10 +18,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.trainingtracker.app.data.local.entity.ExerciseType
 import com.trainingtracker.app.data.local.entity.WorkoutSet
+import com.trainingtracker.app.ui.theme.TrainingColors
 
 /** One set row's raw text-field state, converted to/from [WorkoutSet] on save. */
 data class SetRowState(
@@ -105,7 +109,9 @@ fun SetListEditor(
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Set ${index + 1}", modifier = Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium)
+                    Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.Center) {
+                        SetBadge(number = index + 1)
+                    }
                     OutlinedTextField(
                         value = row.weight,
                         onValueChange = { updateRow(row.copy(weight = it)) },
@@ -150,5 +156,25 @@ fun SetListEditor(
             TextButton(onClick = { onRowsChange(rows + SetRowState()) }) { Text("+ Add set") }
             TextButton(onClick = { onRowsChange(rows + rows.last()) }) { Text("Duplicate last set") }
         }
+    }
+}
+
+/**
+ * A set's position rendered as a weight-plate disc — accent rim, a punched-out center like a
+ * plate's hand hole — instead of a plain "Set N" label, since a workout's sets are a genuine,
+ * meaningful sequence.
+ */
+@Composable
+private fun SetBadge(number: Int) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .drawBehind {
+                drawCircle(color = TrainingColors.Accent)
+                drawCircle(color = TrainingColors.Panel, radius = size.minDimension / 2f - 4.dp.toPx())
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(number.toString(), style = MaterialTheme.typography.labelLarge, color = TrainingColors.Chalk)
     }
 }

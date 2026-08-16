@@ -36,7 +36,16 @@ fun SearchableExercisePicker(
         if (query.isBlank()) exercises else exercises.filter { it.name.contains(query, ignoreCase = true) }
     }
 
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { newExpanded ->
+            expanded = newExpanded
+            // Opening with the previous selection's name still in the box would filter the
+            // list down to just that one match. Clear it so opening always shows everything.
+            if (newExpanded) query = ""
+        },
+        modifier = modifier,
+    ) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it; expanded = true },
@@ -45,7 +54,14 @@ fun SearchableExercisePicker(
             modifier = Modifier.fillMaxWidth().menuAnchor(),
         )
         if (filtered.isNotEmpty()) {
-            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = {
+                    expanded = false
+                    // Restore the display name if the user dismissed without picking anything.
+                    query = exercises.firstOrNull { it.id == selectedExerciseId }?.name ?: ""
+                },
+            ) {
                 filtered.forEach { exercise ->
                     DropdownMenuItem(
                         text = { Text(exercise.name) },

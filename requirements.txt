@@ -289,3 +289,22 @@ Requirements gathering finished. Ready to move into development
   set count was dropped with no confirmation and no error message,
   violating the inline-error requirement (3n). Per-set logging removes
   the top-level sets-count field the old silent guard was checking.
+- Fixed: the searchable exercise picker (3n) filtered its dropdown using
+  whatever name was already typed into the search box - on History,
+  which pre-fills the box with the currently-selected exercise's name,
+  opening the dropdown showed only that one exercise (since nothing
+  else matched its name as a substring), making every other exercise
+  look like it had vanished. Opening the picker now clears the search
+  text so the full list shows immediately.
+- Fixed: the per-set weight/reps/RPE row (Log Workout, History's edit
+  dialog, Pending's confirm dialog) forced 3 text fields plus a badge
+  and a delete button onto a single fixed-width Row. In the narrower
+  dialog contexts each field was squeezed down to ~40dp, wrapping
+  labels like "Weight (kg)" one character per line. Fields now sit in a
+  FlowRow with a sane minimum width each, wrapping onto a second line
+  in narrow containers instead of being crushed illegibly.
+- Fixed: the History edit-session and Pending confirm dialogs had no
+  scrolling, so a session with more than ~2 sets could push the Save/
+  Cancel buttons (and any sets past the second) off-screen with no way
+  to reach them. Both dialogs' content is now height-capped and
+  vertically scrollable.

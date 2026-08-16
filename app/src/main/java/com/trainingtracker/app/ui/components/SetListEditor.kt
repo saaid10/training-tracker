@@ -3,9 +3,12 @@ package com.trainingtracker.app.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -95,6 +98,7 @@ fun List<WorkoutSet>.summaryText(type: ExerciseType): String = joinToString(" ·
  * exercises swap reps for a duration field). Shared by Log Workout, the History edit dialog, and
  * the Pending confirm dialog so the per-set editing logic lives in one place.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SetListEditor(
     exerciseType: ExerciseType,
@@ -108,41 +112,49 @@ fun SetListEditor(
                 onRowsChange(rows.toMutableList().apply { this[index] = updated })
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.Center) {
                         SetBadge(number = index + 1)
                     }
-                    OutlinedTextField(
-                        value = row.weight,
-                        onValueChange = { updateRow(row.copy(weight = it)) },
-                        label = { Text(if (exerciseType == ExerciseType.WEIGHTED) "Weight (kg)" else "Weight (kg, optional)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    // FlowRow lets fields wrap onto a second line in narrow containers (dialogs)
+                    // instead of being squeezed so thin their labels wrap character-by-character.
+                    FlowRow(
                         modifier = Modifier.weight(1f),
-                    )
-                    if (exerciseType == ExerciseType.TIMED) {
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         OutlinedTextField(
-                            value = row.durationSeconds,
-                            onValueChange = { updateRow(row.copy(durationSeconds = it)) },
-                            label = { Text("Duration (s)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
+                            value = row.weight,
+                            onValueChange = { updateRow(row.copy(weight = it)) },
+                            label = { Text(if (exerciseType == ExerciseType.WEIGHTED) "Weight (kg)" else "Weight (kg, optional)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.widthIn(min = 130.dp),
                         )
-                    } else {
+                        if (exerciseType == ExerciseType.TIMED) {
+                            OutlinedTextField(
+                                value = row.durationSeconds,
+                                onValueChange = { updateRow(row.copy(durationSeconds = it)) },
+                                label = { Text("Duration (s)") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.widthIn(min = 110.dp),
+                            )
+                        } else {
+                            OutlinedTextField(
+                                value = row.reps,
+                                onValueChange = { updateRow(row.copy(reps = it)) },
+                                label = { Text("Reps") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.widthIn(min = 90.dp),
+                            )
+                        }
                         OutlinedTextField(
-                            value = row.reps,
-                            onValueChange = { updateRow(row.copy(reps = it)) },
-                            label = { Text("Reps") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
+                            value = row.rpe,
+                            onValueChange = { updateRow(row.copy(rpe = it)) },
+                            label = { Text("RPE") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.widthIn(min = 90.dp),
                         )
                     }
-                    OutlinedTextField(
-                        value = row.rpe,
-                        onValueChange = { updateRow(row.copy(rpe = it)) },
-                        label = { Text("RPE") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.weight(1f),
-                    )
                     IconButton(onClick = { onRowsChange(rows.toMutableList().apply { removeAt(index) }) }, enabled = rows.size > 1) {
                         Icon(Icons.Filled.Delete, contentDescription = "Remove set ${index + 1}")
                     }
